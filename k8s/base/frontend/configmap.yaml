@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: dev
+data:
+  APP_NAME: "MyFrontend"
+  ENVIRONMENT: "deployment"
+  API_URL: "http://backend-service:8080"

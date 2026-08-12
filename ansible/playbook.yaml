@@ -1,0 +1,23 @@
+---
+- name: Setup k8s cluster
+  hosts: all
+  become: yes
+  tasks:
+    - name: Disable swap
+      command: swapoff -a
+      changed_when: false
+
+    - name: remove swap
+      command:
+
+    - name: Install containerd
+      apt:
+        name: containerd
+        state: present
+    - name: Install kubeadm, kubelet, kubectl
+      apt:
+        name:
+          - kubeadm
+          - kubelet
+          - kubectl
+        state: present
