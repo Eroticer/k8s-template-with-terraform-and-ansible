@@ -3,17 +3,59 @@
   hosts: all
   become: yes
   tasks:
-    - name: Disable swap
+    - name: Disable swap # Отключаем swap, так как kubeadm не работает с включенным swap
       command: swapoff -a
       changed_when: false
 
-    - name: remove swap
-      command:
+    - name: Remove swap from fstab # Коментируем swap в fstab, чтобы он не включался при перезагрузке
+      replace: # Модуль замены
+        path: /etc/fstab
+        regexp: '^(\s*)([^#\n]*\sswap\s+sw\s+.*)$'
+        replace: '# \1\2'
+        backup: yes
+
+    - name: Load kernel modules
+      modprobe: # Модуль для загрузки ядра
+        name: "{{ item }}"
+        state: present
+        loop:
+          - overlay
+          - br_netfilter
+
+    - name: Configure sysctl
+      sysctl:
+        name: {item.name}
+        value: {item.value}
+        state: present
+        loop:
+          - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # iptables может видеть трафик проходящий через мосты
+          - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # тоже самое для ipv6
+          - { name: net.ipv4.ip-forward, value: 1} # разрешает маршрутизацию пакетов между сетями
 
     - name: Install containerd
       apt:
         name: containerd
         state: present
+        update_cache: yes # обновить список пакетов
+
+    - name: Create containerd config directory
+      file:
+        path: /etc/containerd # Пака для конфигов не всегда создается
+        state: directory
+
+    - name: Generate default containred config
+      shell: containerd config default > /etc/containerd/config.tolm
+      args: # Создать если еще не создан
+        creates: /etc/containerd/config.tolm
+
+    - name: Restart containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name:
+
     - name: Install kubeadm, kubelet, kubectl
       apt:
         name:
