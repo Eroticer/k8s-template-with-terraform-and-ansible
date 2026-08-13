@@ -54,7 +54,16 @@
         state: restarted
         enabled: yes
 
-    - name:
+    - name: Add k8s apt key
+      apt_key:
+        url: https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key
+        state: present
+
+    - name: Add K8s repo
+      apt_repository:
+        repo: "deb https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /"
+        state: present
+        update_cache: yes
 
     - name: Install kubeadm, kubelet, kubectl
       apt:
@@ -63,3 +72,15 @@
           - kubelet
           - kubectl
         state: present
+
+    - name: Hold kubeadm, kubelet, kubectl # Отмена обновлений по команде
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+        loop:
+          - kubeadm
+          - kubelet
+          - kubectl
+
+    
+        
