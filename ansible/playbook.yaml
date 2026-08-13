@@ -1,7 +1,7 @@
 ---
-- name: Setup k8s cluster
+- name: Config server and install apt
   hosts: all
-  become: yes
+  become: true
   tasks:
     - name: Disable swap # Отключаем swap, так как kubeadm не работает с включенным swap
       command: swapoff -a
@@ -15,7 +15,7 @@
         backup: yes
 
     - name: Load kernel modules
-      modprobe: # Модуль для загрузки ядра
+      modprobe: # Модуль ядра для работы контейера
         name: "{{ item }}"
         state: present
         loop:
@@ -27,10 +27,10 @@
         name: {item.name}
         value: {item.value}
         state: present
-        loop:
-          - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # iptables может видеть трафик проходящий через мосты
-          - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # тоже самое для ipv6
-          - { name: net.ipv4.ip-forward, value: 1} # разрешает маршрутизацию пакетов между сетями
+      loop:
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # iptables может видеть трафик проходящий через мосты
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # тоже самое для ipv6
+        - { name: net.ipv4.ip-forward, value: 1} # разрешает маршрутизацию пакетов между сетями
 
     - name: Install containerd
       apt:
@@ -77,10 +77,53 @@
       dpkg_selections:
         name: "{{ item }}"
         selection: hold
-        loop:
-          - kubeadm
-          - kubelet
-          - kubectl
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
 
-    
+- name: Init k8s master
+  hosts: master
+  become: true
+  tasks:
+    - name: Init cluster
+      shell: |
+        kubeadm init --pod-network-cidr=192.162.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf # Выполнять только если папка еще не создана
+
+    - name: Create .kube directory
+      file:
+        path: /root/.kube
+        state: directory
+        mode: '0755'
+
+    - name: Copy admin.conf to .kube # Это чтобы использовать Kubectl на master
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: yes
+        mode: '0644'
+
+    - name: Install Calico CNI
+      shell: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28/manifests/calico.yaml
+      args:
+        creates: /root/.kube/calico-installed
+
+    - name: Get token for workers
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Save join_command to file
+      copy:
+        content: {{ join_command.stdout }}
+        dest: /root/join_command.sh
+        mode: '0755'
+
+    - name: Save join_command to host
+      fetch:
+        src: /root/join_command.sh
+        dest: /tmp/join_command.sh
+        flat: yes # Копирование без создания промежуточных папок
         
