@@ -126,4 +126,18 @@
         src: /root/join_command.sh
         dest: /tmp/join_command.sh
         flat: yes # Копирование без создания промежуточных папок
-        
+
+- name: Init k8s workers
+  hosts: workers
+  become: true
+  tasks:
+    - name: Copy join_command
+      copy:
+        src: /tmp/join_command.sh
+        dest: /root/join_command.sh
+        mode: '0755'
+
+    - name: Execute join_command
+      shell: /root/join_command.sh
+      args:
+        creates: /etc/kubernetes/kubelet.conf
