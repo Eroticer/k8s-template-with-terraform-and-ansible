@@ -1,0 +1,20 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Секреты
+secret.yaml
+.env
+
+# Kubernetes
+k8s/overlays/dev/sealed-secret.yaml
+k8s/overlays/prod/sealed-secret.yaml
+
+# IDE и системные
+.vscode/
+.idea/
+.DS_Store
+*.swp
