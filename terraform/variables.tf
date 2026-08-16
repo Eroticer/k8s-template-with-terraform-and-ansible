@@ -1,4 +1,4 @@
-variable "api_token" {
+variable "token" {
   description = "API token for Beget"
   type = string
   sensitive = true

@@ -6,5 +6,5 @@ terraform {
   }
 }
 provider "beget" {
-  api_token = var.api_token
+  token = var.token
 }
