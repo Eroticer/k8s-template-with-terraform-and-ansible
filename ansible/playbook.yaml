@@ -117,7 +117,7 @@
 
     - name: Save join_command to file
       copy:
-        content: {{ join_command.stdout }}
+        content: join_command.stdout
         dest: /root/join_command.sh
         mode: '0755'
 
