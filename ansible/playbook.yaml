@@ -18,19 +18,20 @@
       modprobe: # Модуль ядра для работы контейера
         name: "{{ item }}"
         state: present
-        loop:
-          - overlay
-          - br_netfilter
+      loop:
+        - overlay
+        - br_netfilter
 
     - name: Configure sysctl
       sysctl:
-        name: {item.name}
-        value: {item.value}
+        name: "{{ item }}"
+        value: 1
         state: present
+        reload: no
       loop:
-        - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # iptables может видеть трафик проходящий через мосты
-        - { name: net.bridge.bridge-nf-call-iptables, value: 1 } # тоже самое для ipv6
-        - { name: net.ipv4.ip-forward, value: 1} # разрешает маршрутизацию пакетов между сетями
+        - net.bridge.bridge-nf-call-iptables # iptables может видеть трафик проходящий через мосты
+        - net.bridge.bridge-nf-call-ip6tables # тоже самое для ipv6
+        - net.ipv4.ip_forward # разрешает маршрутизацию пакетов между сетями
 
     - name: Install containerd
       apt:
@@ -86,6 +87,14 @@
   hosts: master
   become: true
   tasks:
+    - name: On IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        sysctl_set: yes
+        state: present
+        reload: yes
+
     - name: Init cluster
       shell: |
         kubeadm init --pod-network-cidr=192.162.0.0/16
@@ -106,7 +115,7 @@
         mode: '0644'
 
     - name: Install Calico CNI
-      shell: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28/manifests/calico.yaml
+      shell: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
       args:
         creates: /root/.kube/calico-installed
 
@@ -117,7 +126,7 @@
 
     - name: Save join_command to file
       copy:
-        content: join_command.stdout
+        content: "{{ join_command.stdout }}"
         dest: /root/join_command.sh
         mode: '0755'
 
@@ -131,6 +140,15 @@
   hosts: workers
   become: true
   tasks:
+    - name: On IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      become: true
+
     - name: Copy join_command
       copy:
         src: /tmp/join_command.sh
