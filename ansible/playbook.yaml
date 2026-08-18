@@ -136,6 +136,13 @@
         dest: /tmp/join_command.sh
         flat: yes # Копирование без создания промежуточных папок
 
+    - name: Fetch kubeconfig to host # Копируем чтобы пользоваться kubectl с собственного компа
+      fetch:
+        src: /root/.kube/config
+        dest: ~/.kube/config-beget # после выполнения надо будет export KUBECONFIG=~/.kube/config-beget
+        flat: yes
+        mode: "0600"
+
 - name: Init k8s workers
   hosts: workers
   become: true
