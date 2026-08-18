@@ -119,6 +119,42 @@
       args:
         creates: /root/.kube/calico-installed
 
+    - name: Install Sealed secrets controller
+      shell: |
+        kubectl apply -f https://github.com/bitnami/sealed-secrets/releases/download/v0.38.3/controller.yaml
+      args:
+        creates: /root/.kube/sealed-secrets-ready
+      ignore_errors: true
+
+    - name: Wait for Sealed ready
+      shell: |
+        kubectl wait --for=condition=available --timeout=60s deployment/sealed-secrets-controller -n kube-system
+      args:
+        creates: /root/.kube/sealed-secrets-ready
+      ignore_errors: true
+
+    - name: Install kubeseal
+      shell: |
+        curl -OL "https://github.com/bitnami/sealed-secrets/releases/download/v0.38.3/kubeseal-0.38.3-linux-amd64.tar.gz"
+        tar -xvzf kubeseal-0.38.3-linux-amd64.tar.gz kubeseal
+        sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+      args:
+        creates: /usr/local/bin/kubeseal
+        
+    - name: Get Sealed public key
+      shell: |
+        kubeseal --fetch-cert > /root/.kube/sealed-secret-cert.pem
+      args:
+        creates: /root/.kube/sealed-secret-cert.pem
+
+    - name: Fetch Sealed Secrets public key to localhost
+      fetch:
+        src: /root/.kube/sealed-secret-cert.pem
+        dest: ~/.sealed-secrets/public-key.pem
+        flat: yes
+        mode: "0600"
+      run_once: true
+
     - name: Get token for workers
       shell: kubeadm token create --print-join-command
       register: join_command
